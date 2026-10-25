@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#090a0f">
+  
+  <!-- Embedded Web App Manifest for Instant Android APK / PWA Installation -->
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Car%20Race%20Ultimate%22%2C%22short_name%22%3A%22RaceUltimate%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22landscape%22%2C%22background_color%22%3A%22%23090a0f%22%2C%22theme_color%22%3A%22%2300d2ff%22%7D">
+
+  <title>CAR RACE ULTIMATE - 456 KM/H</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+    body {
+      overflow: hidden;
+      background: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    #rotate-prompt {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #090a0f;
+      z-index: 99999;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      text-align: center;
+      padding: 24px;
+    }
+    #rotate-prompt .phone-icon {
+      font-size: 52px;
+      margin-bottom: 16px;
+      animation: rotatePhone 2s ease-in-out infinite;
+    }
+    @keyframes rotatePhone {
+      0%, 20% { transform: rotate(0deg); }
+      50%, 70% { transform: rotate(-90deg); }
+      100% { transform: rotate(0deg); }
+    }
+    #rotate-prompt h2 {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #00d2ff;
+      margin-bottom: 8px;
+    }
+    #rotate-prompt p {
+      font-size: 14px;
+      color: #aaa;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+
+    @media screen and (orientation: portrait) and (max-width: 900px) {
+      #rotate-prompt { display: flex !important; }
+    }
+
+    #countdown-overlay {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 96px;
+      font-weight: 900;
+      color: #0b0e14;
+      text-shadow: 0 0 35px rgba(0, 162, 255, 0.6), 0 0 70px rgba(0, 162, 255, 0.3);
+      z-index: 20;
+      pointer-events: none;
+      display: none;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    #race-tracker {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: rgba(12, 16, 24, 0.88);
+      border: 1px solid rgba(0, 162, 255, 0.35);
+      padding: 8px 14px;
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      z-index: 5;
+      color: #fff;
+    }
+    .hud-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #00d2ff;
+      text-transform: uppercase;
+    }
+    #rank-val {
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    #rank-val span { font-size: 13px; color: #888; font-weight: 600; }
+    .track-bar-container {
+      width: 120px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    #track-progress {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00d2ff, #00f090);
+    }
+    #finish-distance-text {
+      font-size: 10px;
+      color: #aaa;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    #minimap-card {
+      position: absolute;
+      top: 88px;
+      left: 14px;
+      background: rgba(12, 16, 24, 0.88);
+      border: 1px solid rgba(0, 210, 255, 0.35);
+      border-radius: 14px;
+      padding: 6px 8px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .minimap-title {
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #00d2ff;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    #minimap-canvas {
+      width: 75px;
+      height: 125px;
+      display: block;
+    }
+
+    #cockpit-hud {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      background: rgba(12, 16, 24, 0.88);
+      border: 1px solid rgba(0, 162, 255, 0.3);
+      padding: 8px 14px;
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .car-badge {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 2px;
+    }
+    .m-stripes {
+      display: inline-flex;
+      height: 8px;
+      width: 16px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .m-blue { width: 33.3%; background: #0066b1; }
+    .m-darkblue { width: 33.3%; background: #001f66; }
+    .m-red { width: 33.3%; background: #e2001a; }
+
+    .speed-container {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    #speed-display {
+      font-size: 34px;
+      font-weight: 900;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 16px rgba(0, 210, 255, 0.6);
+      line-height: 1;
+    }
+    .speed-unit {
+      font-size: 11px;
+      font-weight: 700;
+      color: #00d2ff;
+      letter-spacing: 1px;
+    }
+    .rpm-bar-container {
+      width: 130px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    #rpm-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00d2ff 65%, #e2001a 95%);
+      border-radius: 2px;
+      transition: width 0.05s linear;
+    }
+
+    #gear-btn {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(12, 16, 24, 0.88);
+      border: 1px solid rgba(0, 210, 255, 0.5);
+      color: #00d2ff;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 15;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+    }
+    #gear-btn:active { transform: translateX(-50%) scale(0.92); }
+
+    .touch-btn {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #fff;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      z-index: 10;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      touch-action: none;
+    }
+    .touch-btn:active, .touch-btn.active-touch {
+      transform: scale(0.9);
+      filter: brightness(1.35);
+    }
+
+    #btn-steer-left { bottom: 20px; left: 20px; background: rgba(0, 162, 255, 0.6); border-color: rgba(0, 210, 255, 0.9); font-size: 28px; }
+    #btn-steer-right { bottom: 20px; left: 104px; background: rgba(0, 162, 255, 0.6); border-color: rgba(0, 210, 255, 0.9); font-size: 28px; }
+    #brake-btn { bottom: 20px; right: 104px; background: rgba(226, 0, 26, 0.6); border-color: rgba(226, 0, 26, 0.9); }
+    #gas-btn { bottom: 20px; right: 20px; background: rgba(0, 200, 120, 0.6); border-color: rgba(0, 240, 140, 0.9); }
+
+    .overlay-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 9, 14, 0.95);
+      backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 30;
+      text-align: center;
+      padding: 18px;
+      overflow-y: auto;
+    }
+    .overlay-modal h1 { font-size: 38px; font-weight: 900; letter-spacing: 3px; margin-bottom: 4px; }
+    .overlay-modal h2 { font-size: 24px; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px; color: #00d2ff; }
+    .overlay-modal p { font-size: 13px; color: #bbb; max-width: 500px; margin-bottom: 14px; line-height: 1.4; }
+
+    .action-btn {
+      padding: 12px 38px;
+      background: linear-gradient(135deg, #0066b1, #00d2ff);
+      border: none;
+      border-radius: 40px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 150, 255, 0.5);
+      transition: transform 0.2s;
+    }
+    .action-btn:hover { transform: scale(1.05); }
+
+    .secondary-btn {
+      margin-top: 8px;
+      padding: 7px 20px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      color: #00d2ff;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .secondary-btn:hover {
+      background: rgba(0, 210, 255, 0.18);
+      color: #ffffff;
+    }
+
+    .menu-return-btn {
+      background: rgba(255, 80, 80, 0.12);
+      border-color: rgba(255, 80, 80, 0.4);
+      color: #ff6b6b;
+    }
+    .menu-return-btn:hover {
+      background: rgba(255, 80, 80, 0.25);
+      color: #ffffff;
+    }
+
+    .intro-tag {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: #ffaa00;
+      font-weight: 900;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .intro-title {
+      font-size: 48px;
+      font-weight: 900;
+      line-height: 1.05;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 40%, #00d2ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .intro-speed-badge {
+      display: inline-block;
+      padding: 4px 16px;
+      border-radius: 20px;
+      background: rgba(255, 30, 60, 0.25);
+      border: 1px solid rgba(255, 30, 60, 0.6);
+      color: #ff3366;
+      font-weight: 900;
+      font-size: 11px;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+
+    .settings-group {
+      width: 100%;
+      max-width: 480px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .settings-title {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #00d2ff;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .opt-card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 7px 5px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ccc;
+      transition: all 0.2s;
+    }
+    .opt-card.active {
+      background: rgba(0, 210, 255, 0.2);
+      border-color: #00d2ff;
+      color: #fff;
+      box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    }
+
+    #leaderboard {
+      width: 300px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .leader-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .leader-row.player { color: #00d2ff; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+
+  <div id="rotate-prompt">
+    <div class="phone-icon">📱</div>
+    <h2>ROTATE YOUR DEVICE</h2>
+    <p>Please turn your phone horizontally (landscape) to race!</p>
+  </div>
+
+  <div id="gear-btn" onclick="openSettingsModal()">⚙️</div>
+
+  <!-- Intro Screen Modal -->
+  <div id="intro-modal" class="overlay-modal">
+    <div class="intro-tag">CHAMPIONSHIP SERIES</div>
+    <div class="intro-title">CAR RACE<br>ULTIMATE</div>
+    <div class="intro-speed-badge">⚡ 456 KM/H MAX VELOCITY ⚡</div>
+    <p>
+      • Banked Curves & Camber Physics • 5-Car Starting Grid.<br>
+      • 4 Iconic Car Models: BMW M4, Porsche 911 GT3 RS, Huracán STO, GT-R.<br>
+      • Use <b>◀ Left</b> and <b>▶ Right</b> buttons to apex turns.
+    </p>
+    <button class="action-btn" onclick="startFromIntro()">START RACE</button>
+    <button class="secondary-btn" onclick="openGarageModal()">🏎️ SELECT CAR (GARAGE)</button>
+    <button class="secondary-btn" onclick="openSettingsModal()">⚙️ RACE SETTINGS</button>
+  </div>
+
+  <!-- Garage Modal -->
+  <div id="garage-modal" class="overlay-modal" style="display: none;">
+    <h2>CHOOSE YOUR HYPERCAR</h2>
+    <p style="margin-bottom: 10px;">Select from 4 precision-engineered competition models.</p>
+
+    <div class="settings-group">
+      <div class="settings-title">CAR MODEL</div>
+      <div class="options-grid">
+        <div class="opt-card active" id="model-m4" onclick="selectCarModel('m4')">
+          🟢 BMW M4<br><span style="font-size:9px; color:#888;">G82 Competition</span>
+        </div>
+        <div class="opt-card" id="model-gt3" onclick="selectCarModel('gt3')">
+          🔵 911 GT3 RS<br><span style="font-size:9px; color:#888;">Swan-Neck Aero</span>
+        </div>
+        <div class="opt-card" id="model-lambo" onclick="selectCarModel('lambo')">
+          🟡 Huracán STO<br><span style="font-size:9px; color:#888;">Wedge Shark Fin</span>
+        </div>
+        <div class="opt-card" id="model-gtr" onclick="selectCarModel('gtr')">
+          ⚪ GT-R Nismo<br><span style="font-size:9px; color:#888;">Quad Afterburner</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="action-btn" onclick="closeGarageAndStart()">RACE WITH THIS CAR</button>
+    <button class="secondary-btn menu-return-btn" onclick="returnToMainMenu()">⬅ BACK TO MENU</button>
+    <button class="secondary-btn" onclick="document.getElementById('glb-input').click()">LOAD CUSTOM .GLB FILE</button>
+    <input type="file" id="glb-input" accept=".glb,.gltf" style="display:none;" onchange="handleCustomGLB(event)">
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="overlay-modal" style="display: none;">
+    <h2>RACE SETTINGS</h2>
+    <p style="margin-bottom: 10px;">Configure obstacles, track route, and race distance.</p>
+
+    <div class="settings-group">
+      <div class="settings-title">TRACK OBSTACLES</div>
+      <div class="options-grid" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="opt-card active" id="obs-off" onclick="setObstacles(false)">
+          🚫 Without Obstacles<br><span style="font-size:9px; color:#888;">Clean Track Sprint</span>
+        </div>
+        <div class="opt-card" id="obs-on" onclick="setObstacles(true)">
+          ⚠️ With Obstacles<br><span style="font-size:9px; color:#888;">Hazard Barriers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-title">SELECT ROUTE / CURVE PROFILE</div>
+      <div class="options-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="opt-card active" id="route-autobahn" onclick="setRoute('autobahn')">
+          🏁 Speed Ring<br><span style="font-size:9px; color:#888;">Banked Sweeps</span>
+        </div>
+        <div class="opt-card" id="route-tokyo" onclick="setRoute('tokyo')">
+          ⚡ S-Circuit<br><span style="font-size:9px; color:#888;">Technical Chicanes</span>
+        </div>
+        <div class="opt-card" id="route-canyon" onclick="setRoute('canyon')">
+          🌀 Apex Run<br><span style="font-size:9px; color:#888;">Undulating Bends</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-title">RACE DURATION / DISTANCE</div>
+      <div class="options-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="opt-card" id="dist-3000" onclick="setDistance(3000)">
+          ⚡ Sprint<br><span style="font-size:9px; color:#888;">3,000m (~35s)</span>
+        </div>
+        <div class="opt-card active" id="dist-6000" onclick="setDistance(6000)">
+          🏆 Grand Prix<br><span style="font-size:9px; color:#888;">6,000m (~1.2m)</span>
+        </div>
+        <div class="opt-card" id="dist-10000" onclick="setDistance(10000)">
+          🏁 Endurance<br><span style="font-size:9px; color:#888;">10,000m (~2.0m)</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="action-btn" onclick="applySettingsAndClose()">APPLY & RACE</button>
+    <button class="secondary-btn menu-return-btn" onclick="returnToMainMenu()">⬅ BACK TO MENU</button>
+  </div>
+
+  <div id="countdown-overlay">3</div>
+
+  <div id="race-tracker">
+    <div class="hud-label">Race Position</div>
+    <div id="rank-val">1<span> / 5</span></div>
+    <div class="track-bar-container">
+      <div id="track-progress"></div>
+    </div>
+    <div id="finish-distance-text">6,000m TO FINISH</div>
+  </div>
+
+  <div id="minimap-card">
+    <div class="minimap-title">TRACK GPS</div>
+    <canvas id="minimap-canvas" width="150" height="250"></canvas>
+  </div>
+
+  <div id="cockpit-hud">
+    <div class="car-badge" id="hud-car-name">
+      <div class="m-stripes"><div class="m-blue"></div><div class="m-darkblue"></div><div class="m-red"></div></div>
+      BMW M4 G82
+    </div>
+    <div class="speed-container">
+      <span id="speed-display">0</span>
+      <span class="speed-unit">KM/H</span>
+    </div>
+    <div class="rpm-bar-container"><div id="rpm-bar"></div></div>
+  </div>
+
+  <div id="btn-steer-left" class="touch-btn">◀</div>
+  <div id="btn-steer-right" class="touch-btn">▶</div>
+  <div id="brake-btn" class="touch-btn"><span>BRAKE</span></div>
+  <div id="gas-btn" class="touch-btn"><span>NITRO</span><span>456</span></div>
+
+  <div id="game-over" class="overlay-modal" style="display: none;">
+    <h1 style="color: #e2001a;">WRECKED!</h1>
+    <p id="crash-reason">You crashed out of the race.</p>
+    <button class="action-btn" onclick="restartToGrid()">RESTART TO GRID</button>
+    <button class="secondary-btn menu-return-btn" onclick="returnToMainMenu()">⬅ BACK TO MENU</button>
+  </div>
+
+  <div id="finish-modal" class="overlay-modal" style="display: none;">
+    <h1 id="finish-title" style="color: #00f090;">CHECKERED FLAG!</h1>
+    <p id="finish-subtitle">Finished the Grand Prix.</p>
+    <div id="leaderboard"></div>
+    <button class="action-btn" onclick="restartToGrid()">RACE AGAIN</button>
+    <button class="secondary-btn menu-return-btn" onclick="returnToMainMenu()">⬅ BACK TO MENU</button>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <script>
+    // Android Hardware Back-Button Support
+    window.addEventListener('popstate', function(e) {
+      returnToMainMenu();
+      history.pushState(null, document.title, location.href);
+    });
+    history.pushState(null, document.title, location.href);
+
+    const ROUTES = {
+      autobahn: {
+        name: "Speed Ring",
+        roadColor: 0x242834,
+        accentColor: "#00d2ff",
+        curveFn: (dist) => {
+          if (dist < 500) return 0;
+          const td = dist - 500;
+          const blend = Math.min(1.0, td / 200);
+  
