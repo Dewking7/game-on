@@ -1,0 +1,9 @@
+
+{
+  "name": "my-first-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('Using HTML files directly')\""
+  }
+}
