@@ -12,13 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Get source code
+        uses: actions/checkout@v4
 
-      - name: Build APK from HTML
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Android APK
         uses: cemcoe/web-to-apk-action@v1
         with:
           app_name: "My First Game"
           app_id: "com.myfirstgame.racing"
-          build_command: "npm install && npm run build"
           web_dir: "."
           
