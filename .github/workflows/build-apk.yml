@@ -1,0 +1,24 @@
+
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build APK from HTML
+        uses: cemcoe/web-to-apk-action@v1
+        with:
+          app_name: "My First Game"
+          app_id: "com.myfirstgame.racing"
+          build_command: "npm install && npm run build"
+          web_dir: "."
+          
